@@ -5,7 +5,18 @@ export default {
     "./src/**/*.{js,ts,jsx,tsx}",
   ],
   theme: {
-    extend: {},
+    extend: {
+      colors: {
+        'aggie-maroon': '#500000',
+        'cowboy-leather': '#8B5A2B',
+        'texas-sand': '#F4EFEA',
+        'denim-blue': '#2C3E50',
+      },
+      fontFamily: {
+        western: ['Rye', 'serif'],
+        sans: ['Inter', 'sans-serif'],
+      }
+    },
   },
   plugins: [],
 }
