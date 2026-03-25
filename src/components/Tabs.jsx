@@ -10,13 +10,15 @@ export default function Tabs({ activeTab, setActiveTab }) {
   };
 
   return (
-    <div className="flex justify-around bg-white p-2 shadow-sm sticky top-0 z-10">
+    <div className="flex justify-around bg-texas-sand/95 backdrop-blur-sm p-3 shadow-sm border-b border-cowboy-leather/20 sticky top-0 z-10">
       {dates.map(date => (
         <button
           key={date}
           onClick={() => setActiveTab(date)}
-          className={`px-6 py-2 rounded-full text-sm font-semibold transition-colors ${
-            activeTab === date ? 'bg-red-800 text-white' : 'text-gray-500 hover:bg-red-50'
+          className={`px-6 py-2 rounded-full text-xs font-bold uppercase tracking-wider transition-all duration-300 focus:outline-none ${
+            activeTab === date 
+              ? 'bg-aggie-maroon text-texas-sand shadow-[0_4px_10px_rgba(80,0,0,0.3)] scale-105' 
+              : 'text-cowboy-leather hover:bg-cowboy-leather/10'
           }`}
         >
           {getTabLabel(date)}
