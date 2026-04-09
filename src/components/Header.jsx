@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import AuthControls from './AuthControls';
 import DateEditModal from './DateEditModal';
 import { formatDisplayDateRange } from '../utils/itineraryDates';
 
-export default function Header({ itinerary = null, onDatesUpdate = null }) {
+export default function Header({ canEdit = false, itinerary = null, onDatesUpdate = null }) {
   const navigate = useNavigate();
   const location = useLocation();
   const [isDateModalOpen, setIsDateModalOpen] = useState(false);
@@ -18,9 +19,7 @@ export default function Header({ itinerary = null, onDatesUpdate = null }) {
 
   return (
     <header className="p-6 md:p-8 relative overflow-hidden z-30">
-      {/* Solid flat header, removed texture patterns */}
-      
-      <div className="relative z-10 flex items-center justify-between">
+      <div className="relative z-10 flex flex-col gap-6 md:flex-row md:items-start md:justify-between">
         <div className="flex-1">
           <div className="flex items-start gap-3">
             {isOnItinerary && (
@@ -52,7 +51,7 @@ export default function Header({ itinerary = null, onDatesUpdate = null }) {
                         Dates not set
                       </p>
                     )}
-                    {isOnItinerary && (
+                    {canEdit && isOnItinerary && (
                       <button
                         onClick={() => setIsDateModalOpen(true)}
                         className={`transition-colors p-1 text-white opacity-80 hover:opacity-100 hover:text-[color:var(--theme-secondary)]`}
@@ -69,15 +68,18 @@ export default function Header({ itinerary = null, onDatesUpdate = null }) {
             </div>
           </div>
         </div>
+        <AuthControls compact />
       </div>
 
-      <DateEditModal
-        isOpen={isDateModalOpen}
-        onClose={() => setIsDateModalOpen(false)}
-        onSave={handleDatesSave}
-        startDate={itinerary?.start_date}
-        endDate={itinerary?.end_date}
-      />
+      {canEdit && (
+        <DateEditModal
+          isOpen={isDateModalOpen}
+          onClose={() => setIsDateModalOpen(false)}
+          onSave={handleDatesSave}
+          startDate={itinerary?.start_date}
+          endDate={itinerary?.end_date}
+        />
+      )}
     </header>
   );
 }

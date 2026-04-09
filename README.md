@@ -95,5 +95,37 @@ To deploy your application globally via Firebase Hosting:
    firebase deploy --only hosting
    ```
 
+### 5. Admin Access
+Trip CRUD is restricted to Google accounts that are explicitly allowlisted.
+
+To make a Gmail user an admin:
+1. Add the email to [src/config/admin.js](/Users/charliechiu/Documents/SideProject/itinerary/src/config/admin.js).
+   ```javascript
+   export const ADMIN_EMAILS = [
+     'charly729.chiu@gmail.com',
+     'another.user@gmail.com'
+   ];
+   ```
+2. Add the same email to [firestore.rules](/Users/charliechiu/Documents/SideProject/itinerary/firestore.rules).
+   ```txt
+   function isAdmin() {
+     return request.auth != null
+       && request.auth.token.email in [
+         'charly729.chiu@gmail.com',
+         'another.user@gmail.com'
+       ];
+   }
+   ```
+3. Deploy the updated Firestore rules:
+   ```bash
+   npx -y firebase-tools@latest deploy --only firestore:rules
+   ```
+4. Have that user sign in with Google from the app.
+
+Notes:
+- Use the exact Google account email in lowercase.
+- Updating only the frontend allowlist is not enough; the Firestore rules must also include the email.
+- The user can sign in before the rules change, but they will not have admin write access until both places are updated.
+
 ---
 *Created by Charlie Chiu.*

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { collection, onSnapshot, addDoc, deleteDoc, doc } from 'firebase/firestore';
 import { db } from '../firebase';
 
-export default function RouletteView({ itineraryId = 'cstat' }) {
+export default function RouletteView({ canEdit = false, itineraryId = 'cstat' }) {
   const [options, setOptions] = useState([]);
   const [newOption, setNewOption] = useState('');
   
@@ -21,6 +21,7 @@ export default function RouletteView({ itineraryId = 'cstat' }) {
 
   const handleAdd = async (e) => {
     e.preventDefault();
+    if (!canEdit) return;
     if (!newOption.trim()) return;
     try {
       await addDoc(collection(db, 'itineraries', itineraryId, 'roulette'), { name: newOption.trim() });
@@ -31,6 +32,7 @@ export default function RouletteView({ itineraryId = 'cstat' }) {
   };
 
   const handleDelete = async (id) => {
+    if (!canEdit) return;
     try {
       await deleteDoc(doc(db, 'itineraries', itineraryId, 'roulette', id));
     } catch (err) {
@@ -95,19 +97,21 @@ export default function RouletteView({ itineraryId = 'cstat' }) {
       <div className="bg-[#1E1E1E] rounded-xl border border-[#333333] p-5">
         <h3 className="font-bold text-white border-b border-[#333333] pb-2 mb-3 uppercase tracking-wider text-sm">Competitors ({options.length})</h3>
         
-        <form onSubmit={handleAdd} className="flex gap-2 mb-4">
-          <input 
-            type="text" 
-            value={newOption}
-            onChange={(e) => setNewOption(e.target.value)}
-            placeholder="Add a restaurant..."
-            className="flex-1 border border-[#333333] bg-[#121212] text-white rounded-md p-2 text-sm focus:outline-none focus:border-white transition-colors"
-            disabled={isSpinning}
-          />
-          <button type="submit" disabled={isSpinning || !newOption.trim()} className="bg-white text-black border border-white px-4 py-2 rounded-md font-bold uppercase tracking-wider text-xs hover:bg-gray-200 transition-colors disabled:opacity-50">
-            Add
-          </button>
-        </form>
+        {canEdit && (
+          <form onSubmit={handleAdd} className="flex gap-2 mb-4">
+            <input 
+              type="text" 
+              value={newOption}
+              onChange={(e) => setNewOption(e.target.value)}
+              placeholder="Add a restaurant..."
+              className="flex-1 border border-[#333333] bg-[#121212] text-white rounded-md p-2 text-sm focus:outline-none focus:border-white transition-colors"
+              disabled={isSpinning}
+            />
+            <button type="submit" disabled={isSpinning || !newOption.trim()} className="bg-white text-black border border-white px-4 py-2 rounded-md font-bold uppercase tracking-wider text-xs hover:bg-gray-200 transition-colors disabled:opacity-50">
+              Add
+            </button>
+          </form>
+        )}
 
         <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
           {options.length === 0 ? (
@@ -116,9 +120,11 @@ export default function RouletteView({ itineraryId = 'cstat' }) {
             options.map(opt => (
               <div key={opt.id} className="flex justify-between items-center bg-[#121212] border border-[#333333] p-2.5 rounded-md transition-all">
                 <span className="font-bold text-sm text-white">{opt.name}</span>
-                <button onClick={() => handleDelete(opt.id)} disabled={isSpinning} className="text-red-500 hover:text-red-400 p-1 opacity-60 hover:opacity-100 disabled:opacity-20 transition-opacity">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" /></svg>
-                </button>
+                {canEdit && (
+                  <button onClick={() => handleDelete(opt.id)} disabled={isSpinning} className="text-red-500 hover:text-red-400 p-1 opacity-60 hover:opacity-100 disabled:opacity-20 transition-opacity">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" /></svg>
+                  </button>
+                )}
               </div>
             ))
           )}

@@ -3,7 +3,7 @@ import { collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc } from 'fireb
 import { db } from '../firebase';
 import ExpenseModal from './ExpenseModal';
 
-export default function ExpensesView({ itineraryId = 'cstat' }) {
+export default function ExpensesView({ canEdit = false, itineraryId = 'cstat' }) {
   const [expenses, setExpenses] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingExpense, setEditingExpense] = useState(null);
@@ -70,6 +70,10 @@ export default function ExpensesView({ itineraryId = 'cstat' }) {
   }, [expenses]);
 
   const handleSave = async (formData) => {
+    if (!canEdit) {
+      return;
+    }
+
     try {
       if (editingExpense && editingExpense.id) {
         await updateDoc(doc(db, 'itineraries', itineraryId, 'expenses', editingExpense.id), formData);
@@ -83,6 +87,10 @@ export default function ExpensesView({ itineraryId = 'cstat' }) {
   };
 
   const handleDelete = async (id) => {
+    if (!canEdit) {
+      return;
+    }
+
     await deleteDoc(doc(db, 'itineraries', itineraryId, 'expenses', id));
   };
 
@@ -111,12 +119,14 @@ export default function ExpensesView({ itineraryId = 'cstat' }) {
       <div className="bg-[#1E1E1E] rounded-xl border border-[#333333] p-5">
         <div className="flex justify-between items-center border-b border-[#333333] pb-2 mb-3">
           <h2 className="font-black font-sans text-white text-2xl tracking-tight">Expenses Log</h2>
-          <button 
-            onClick={() => { setEditingExpense(null); setIsModalOpen(true); }}
-            className="bg-white text-black px-3 py-1.5 rounded-md text-xs font-bold uppercase tracking-wider hover:bg-gray-200 hover:-translate-y-0.5 transition-all"
-          >
-            + Add
-          </button>
+          {canEdit && (
+            <button 
+              onClick={() => { setEditingExpense(null); setIsModalOpen(true); }}
+              className="bg-white text-black px-3 py-1.5 rounded-md text-xs font-bold uppercase tracking-wider hover:bg-gray-200 hover:-translate-y-0.5 transition-all"
+            >
+              + Add
+            </button>
+          )}
         </div>
         
         {expenses.length === 0 ? (
@@ -134,10 +144,12 @@ export default function ExpensesView({ itineraryId = 'cstat' }) {
                     <span className="font-bold">Split with:</span> {exp.participants?.join(', ')}
                   </p>
                 </div>
-                <div className="flex flex-col gap-2 items-end opacity-0 group-hover:opacity-100 transition-opacity">
-                  <button onClick={() => { setEditingExpense(exp); setIsModalOpen(true); }} className="text-gray-400 hover:text-white text-xs font-bold uppercase tracking-widest">Edit</button>
-                  <button onClick={() => handleDelete(exp.id)} className="text-red-500 hover:text-red-400 text-xs font-bold uppercase tracking-widest">Delete</button>
-                </div>
+                {canEdit && (
+                  <div className="flex flex-col gap-2 items-end opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button onClick={() => { setEditingExpense(exp); setIsModalOpen(true); }} className="text-gray-400 hover:text-white text-xs font-bold uppercase tracking-widest">Edit</button>
+                    <button onClick={() => handleDelete(exp.id)} className="text-red-500 hover:text-red-400 text-xs font-bold uppercase tracking-widest">Delete</button>
+                  </div>
+                )}
               </div>
             ))}
           </div>

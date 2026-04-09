@@ -1,63 +1,48 @@
 import { useEffect, useState } from 'react';
 import { useParams, Navigate } from 'react-router-dom';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
-import { db } from '../firebase';
-import { getItinerary } from '../config/itineraries';
+import { useAuth } from '../context/AuthContext';
 import { ThemeProvider } from '../context/ThemeContext';
 import ItineraryApp from '../ItineraryApp';
+import { subscribeToTrip, updateTrip } from '../utils/trips';
 
 const ItineraryPage = () => {
   const { id } = useParams();
-  const baseItinerary = getItinerary(id);
-  const [itinerary, setItinerary] = useState(baseItinerary);
+  const { isAdmin } = useAuth();
+  const [itinerary, setItinerary] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Fetch itinerary metadata from Firestore (dates, etc.)
-    const fetchItineraryDates = async () => {
-      try {
-        const docRef = doc(db, 'itineraries', id);
-        const docSnap = await getDoc(docRef);
-        
-        if (docSnap.exists()) {
-          const firestoreData = docSnap.data();
-          setItinerary(prev => ({
-            ...prev,
-            start_date: firestoreData.start_date || prev.start_date,
-            end_date: firestoreData.end_date || prev.end_date
-          }));
-        }
-      } catch (error) {
-        console.error("Error fetching itinerary dates:", error);
-      } finally {
+    const unsubscribe = subscribeToTrip(
+      id,
+      (trip) => {
+        setItinerary(trip);
+        setIsLoading(false);
+      },
+      (error) => {
+        console.error('Error fetching itinerary:', error);
+        setItinerary(null);
         setIsLoading(false);
       }
-    };
+    );
 
-    fetchItineraryDates();
+    return () => unsubscribe();
   }, [id]);
 
   const handleDatesUpdate = async (startDate, endDate) => {
     try {
-      // Update Firestore
-      const docRef = doc(db, 'itineraries', id);
-      await setDoc(docRef, {
+      await updateTrip(id, {
+        name: itinerary?.name || '',
+        location: itinerary?.location || '',
+        description: itinerary?.description || '',
         start_date: startDate,
         end_date: endDate
-      }, { merge: true });
-
-      // Update local state
-      setItinerary(prev => ({
-        ...prev,
-        start_date: startDate,
-        end_date: endDate
-      }));
+      });
     } catch (error) {
       console.error("Error updating itinerary dates:", error);
     }
   };
 
-  if (!baseItinerary) {
+  if (!isLoading && !itinerary) {
     return <Navigate to="/" replace />;
   }
 
@@ -70,11 +55,12 @@ const ItineraryPage = () => {
   }
 
   return (
-    <ThemeProvider themeName={baseItinerary.theme}>
+    <ThemeProvider>
       <ItineraryApp 
         itineraryId={id} 
         itinerary={itinerary} 
         onDatesUpdate={handleDatesUpdate}
+        canEdit={isAdmin}
       />
     </ThemeProvider>
   );
