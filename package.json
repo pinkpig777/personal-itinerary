@@ -4,7 +4,9 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
+    "backfill:trip-acl": "node scripts/backfill-trip-acls.mjs",
     "backfill:trips": "node scripts/backfill-itineraries.mjs",
+    "backfill:user-trip-access": "node scripts/backfill-user-trip-access.mjs",
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint src --report-unused-disable-directives --max-warnings 0",

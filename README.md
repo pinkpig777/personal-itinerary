@@ -96,36 +96,45 @@ To deploy your application globally via Firebase Hosting:
    ```
 
 ### 5. Admin Access
-Trip CRUD is restricted to Google accounts that are explicitly allowlisted.
+Trip access is now scoped per trip.
 
-To make a Gmail user an admin:
-1. Add the email to [src/config/admin.js](/Users/charliechiu/Documents/SideProject/itinerary/src/config/admin.js).
-   ```javascript
-   export const ADMIN_EMAILS = [
-     'charly729.chiu@gmail.com',
-     'another.user@gmail.com'
-   ];
-   ```
-2. Add the same email to [firestore.rules](/Users/charliechiu/Documents/SideProject/itinerary/firestore.rules).
-   ```txt
-   function isAdmin() {
-     return request.auth != null
-       && request.auth.token.email in [
-         'charly729.chiu@gmail.com',
-         'another.user@gmail.com'
-       ];
-   }
-   ```
-3. Deploy the updated Firestore rules:
-   ```bash
-   npx -y firebase-tools@latest deploy --only firestore:rules
-   ```
-4. Have that user sign in with Google from the app.
+Roles:
+- `charly729.chiu@gmail.com` is the only global super admin. This is configured in [src/config/admin.js](/Users/charliechiu/Documents/SideProject/itinerary/src/config/admin.js).
+- Trip `writers` can edit that trip’s metadata, dates, spots, expenses, and roulette data.
+- Trip `readers` can view that trip but cannot write.
+- Users with no assignment on a trip cannot read it at all.
 
-Notes:
-- Use the exact Google account email in lowercase.
-- Updating only the frontend allowlist is not enough; the Firestore rules must also include the email.
-- The user can sign in before the rules change, but they will not have admin write access until both places are updated.
+How access works:
+1. A person signs in with Google once. That creates or updates their private profile in `users_private/{uid}`.
+2. The super admin opens the landing page, clicks `Manage Access` on a trip, and assigns that user `Read`, `Write`, or `No Access`.
+3. The app stores those assignments on the trip document in `readerUids`, `writerUids`, and `memberUids`.
+
+Operational notes:
+- The frontend no longer keeps a global reader/admin allowlist. Trip visibility comes from Firestore membership.
+- Firestore rules in [firestore.rules](/Users/charliechiu/Documents/SideProject/itinerary/firestore.rules) enforce the same split:
+  - `users_private/{uid}` is readable only by the owner and the super admin.
+  - `itineraries/{slug}` and nested collections are readable only by trip members.
+  - Trip creation, deletion, and access-management writes are super-admin only.
+  - Regular trip writers cannot change ACL fields.
+- After changing rules, deploy them with:
+  ```bash
+  npx -y firebase-tools@latest deploy --only firestore:rules
+  ```
+
+Migration scripts:
+- Backfill the seeded trip metadata:
+  ```bash
+  npm run backfill:trips
+  ```
+- Normalize ACL fields on all existing trips:
+  ```bash
+  npm run backfill:trip-acl
+  ```
+
+Both scripts use the currently logged-in Firebase CLI account. If the local Firebase CLI token is stale, re-run:
+```bash
+npx -y firebase-tools@latest login
+```
 
 ---
 *Created by Charlie Chiu.*

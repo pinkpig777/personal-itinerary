@@ -2,18 +2,296 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    function isAdmin() {
-      return request.auth != null
-        && request.auth.token.email in ['charly729.chiu@gmail.com'];
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: users_private/{uid}
+    // Fields:
+    //   - emailLower: string
+    //   - displayName: string
+    //   - photoURL: string
+    //   - createdAt: timestamp
+    //   - lastSeenAt: timestamp
+    //
+    // Collection: itineraries/{slug}
+    // Fields:
+    //   - name: string
+    //   - location: string
+    //   - description: string
+    //   - start_date: string|null (YYYY-MM-DD)
+    //   - end_date: string|null (YYYY-MM-DD)
+    //   - readerUids: list
+    //   - writerUids: list
+    //   - memberUids: list
+    //   - createdAt: timestamp
+    //   - updatedAt: timestamp
+    //
+    // Subcollections:
+    //   - itineraries/{slug}/spots/{spotId}
+    //   - itineraries/{slug}/expenses/{expenseId}
+    //   - itineraries/{slug}/roulette/{optionId}
+    //
+    // Collection: user_trip_access/{uid}
+    // Fields:
+    //   - tripIds: list
+    //   - writeTripIds: list
+    //   - updatedAt: timestamp
+    // ===============================================================
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isSuperAdmin() {
+      return isAuthenticated()
+        && request.auth.token.email == 'charly729.chiu@gmail.com';
+    }
+
+    function isSelf(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function hasOnlyAllowedFields(data, fields) {
+      return data.keys().hasOnly(fields);
+    }
+
+    function hasRequiredFields(data, fields) {
+      return data.keys().hasAll(fields);
+    }
+
+    function isValidDayString(value) {
+      return value is string
+        && value.matches('^\\d{4}-\\d{2}-\\d{2}$');
+    }
+
+    function isValidOptionalDayString(value) {
+      return value == null || isValidDayString(value);
+    }
+
+    function isValidOptionalUrl(value) {
+      return value == ''
+        || (value is string && value.matches('^https?://.+'));
+    }
+
+    function isValidString(value, maxSize) {
+      return value is string && value.size() <= maxSize;
+    }
+
+    function isValidRequiredString(value, maxSize) {
+      return value is string && value.size() > 0 && value.size() <= maxSize;
+    }
+
+    function isValidAccessList(value) {
+      return value is list && value.size() <= 100;
+    }
+
+    function isValidUserPrivateCreate(data) {
+      return hasOnlyAllowedFields(
+          data,
+          ['emailLower', 'displayName', 'photoURL', 'createdAt', 'lastSeenAt']
+        )
+        && hasRequiredFields(
+          data,
+          ['emailLower', 'displayName', 'photoURL', 'createdAt', 'lastSeenAt']
+        )
+        && isValidRequiredString(data.emailLower, 320)
+        && isValidString(data.displayName, 120)
+        && isValidString(data.photoURL, 500)
+        && data.createdAt is timestamp
+        && data.lastSeenAt is timestamp;
+    }
+
+    function isValidUserPrivateUpdate(data, previousData) {
+      return isValidUserPrivateCreate(data)
+        && data.createdAt == previousData.createdAt;
+    }
+
+    function isValidTripData(data) {
+      return hasOnlyAllowedFields(
+          data,
+          [
+            'name',
+            'location',
+            'description',
+            'start_date',
+            'end_date',
+            'readerUids',
+            'writerUids',
+            'memberUids',
+            'createdAt',
+            'updatedAt'
+          ]
+        )
+        && hasRequiredFields(
+          data,
+          [
+            'name',
+            'location',
+            'description',
+            'start_date',
+            'end_date',
+            'readerUids',
+            'writerUids',
+            'memberUids',
+            'createdAt',
+            'updatedAt'
+          ]
+        )
+        && isValidRequiredString(data.name, 120)
+        && isValidRequiredString(data.location, 160)
+        && isValidString(data.description, 500)
+        && isValidOptionalDayString(data.start_date)
+        && isValidOptionalDayString(data.end_date)
+        && (
+          (data.start_date == null && data.end_date == null)
+          || (
+            isValidDayString(data.start_date)
+            && isValidDayString(data.end_date)
+            && data.start_date <= data.end_date
+          )
+        )
+        && isValidAccessList(data.readerUids)
+        && isValidAccessList(data.writerUids)
+        && isValidAccessList(data.memberUids)
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isTripMemberData(data) {
+      return isAuthenticated()
+        && data.keys().hasAll(['memberUids'])
+        && data.memberUids is list
+        && request.auth.uid in data.memberUids;
+    }
+
+    function isTripWriterData(data) {
+      return isAuthenticated()
+        && data.keys().hasAll(['writerUids'])
+        && data.writerUids is list
+        && request.auth.uid in data.writerUids;
+    }
+
+    function protectedTripFieldsUnchanged() {
+      return request.resource.data.createdAt == resource.data.createdAt
+        && request.resource.data.readerUids == resource.data.readerUids
+        && request.resource.data.writerUids == resource.data.writerUids
+        && request.resource.data.memberUids == resource.data.memberUids;
+    }
+
+    function canReadTripById(itineraryId) {
+      return isSuperAdmin()
+        || (
+          isAuthenticated()
+          && exists(/databases/$(database)/documents/itineraries/$(itineraryId))
+          && isTripMemberData(
+            get(/databases/$(database)/documents/itineraries/$(itineraryId)).data
+          )
+        );
+    }
+
+    function canWriteTripById(itineraryId) {
+      return isSuperAdmin()
+        || (
+          isAuthenticated()
+          && exists(/databases/$(database)/documents/itineraries/$(itineraryId))
+          && isTripWriterData(
+            get(/databases/$(database)/documents/itineraries/$(itineraryId)).data
+          )
+        );
+    }
+
+    function isValidSpot(data) {
+      return hasOnlyAllowedFields(
+          data,
+          ['date', 'time', 'title', 'description', 'googleMapsLink']
+        )
+        && hasRequiredFields(
+          data,
+          ['date', 'time', 'title', 'description', 'googleMapsLink']
+        )
+        && isValidDayString(data.date)
+        && data.time is string
+        && data.time.matches('^\\d{2}:\\d{2}$')
+        && isValidRequiredString(data.title, 160)
+        && isValidString(data.description, 1000)
+        && isValidOptionalUrl(data.googleMapsLink);
+    }
+
+    function isValidExpense(data) {
+      return hasOnlyAllowedFields(
+          data,
+          ['title', 'payer', 'amount', 'participants']
+        )
+        && hasRequiredFields(
+          data,
+          ['title', 'payer', 'amount', 'participants']
+        )
+        && isValidRequiredString(data.title, 200)
+        && isValidRequiredString(data.payer, 120)
+        && data.amount is number
+        && data.amount >= 0
+        && data.participants is list
+        && data.participants.size() > 0
+        && data.participants.size() <= 50;
+    }
+
+    function isValidRouletteOption(data) {
+      return hasOnlyAllowedFields(data, ['name'])
+        && hasRequiredFields(data, ['name'])
+        && isValidRequiredString(data.name, 160);
+    }
+
+    function isValidUserTripAccess(data) {
+      return hasOnlyAllowedFields(data, ['tripIds', 'writeTripIds', 'updatedAt'])
+        && hasRequiredFields(data, ['tripIds', 'writeTripIds', 'updatedAt'])
+        && isValidAccessList(data.tripIds)
+        && isValidAccessList(data.writeTripIds)
+        && data.updatedAt is timestamp;
+    }
+
+    match /users_private/{userId} {
+      allow read: if isSelf(userId) || isSuperAdmin();
+      allow create: if isSelf(userId) && isValidUserPrivateCreate(request.resource.data);
+      allow update: if isSelf(userId) && isValidUserPrivateUpdate(request.resource.data, resource.data);
+    }
+
+    match /user_trip_access/{userId} {
+      allow read: if isSelf(userId) || isSuperAdmin();
+      allow create, update: if isSuperAdmin() && isValidUserTripAccess(request.resource.data);
+      allow delete: if isSuperAdmin();
     }
 
     match /itineraries/{itineraryId} {
-      allow read: if true;
-      allow write: if isAdmin();
+      allow read: if isSuperAdmin() || isTripMemberData(resource.data);
+      allow create: if isSuperAdmin() && isValidTripData(request.resource.data);
+      allow delete: if isSuperAdmin();
+      allow update: if (
+          isSuperAdmin()
+          && isValidTripData(request.resource.data)
+          && request.resource.data.createdAt == resource.data.createdAt
+        ) || (
+          isTripWriterData(resource.data)
+          && isValidTripData(request.resource.data)
+          && protectedTripFieldsUnchanged()
+        );
 
-      match /{document=**} {
-        allow read: if true;
-        allow write: if isAdmin();
+      match /spots/{spotId} {
+        allow read: if canReadTripById(itineraryId);
+        allow create, update: if canWriteTripById(itineraryId) && isValidSpot(request.resource.data);
+        allow delete: if canWriteTripById(itineraryId);
+      }
+
+      match /expenses/{expenseId} {
+        allow read: if canReadTripById(itineraryId);
+        allow create, update: if canWriteTripById(itineraryId) && isValidExpense(request.resource.data);
+        allow delete: if canWriteTripById(itineraryId);
+      }
+
+      match /roulette/{optionId} {
+        allow read: if canReadTripById(itineraryId);
+        allow create, update: if canWriteTripById(itineraryId) && isValidRouletteOption(request.resource.data);
+        allow delete: if canWriteTripById(itineraryId);
       }
     }
   }

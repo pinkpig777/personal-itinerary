@@ -10,3 +10,26 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
+
+.access-modal-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: #5c5c5c #121212;
+  scrollbar-gutter: stable;
+}
+
+.access-modal-scrollbar::-webkit-scrollbar {
+  width: 8px;
+}
+
+.access-modal-scrollbar::-webkit-scrollbar-track {
+  background: #121212;
+}
+
+.access-modal-scrollbar::-webkit-scrollbar-thumb {
+  background: #5c5c5c;
+  border-radius: 9999px;
+}
+
+.access-modal-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #8a8a8a;
+}

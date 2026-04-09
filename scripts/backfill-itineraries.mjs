@@ -1,14 +1,15 @@
-import { initializeApp } from 'firebase/app';
-import { doc, getDoc, getFirestore, serverTimestamp, setDoc } from 'firebase/firestore';
-
-const firebaseConfig = {
-  apiKey: 'AIzaSyCv4MqDGbj38GkmcXVsM0xeHoZJTB5GI4w',
-  authDomain: 'itinerary-d5936.firebaseapp.com',
-  projectId: 'itinerary-d5936',
-  storageBucket: 'itinerary-d5936.firebasestorage.app',
-  messagingSenderId: '997594181925',
-  appId: '1:997594181925:web:0607e38b5bc87432a8aacc'
-};
+import {
+  asNullableString,
+  asString,
+  asStringArray,
+  asTimestamp,
+  getDocument,
+  patchDocument,
+  readFields,
+  readStringArrayField,
+  readStringField,
+  readTimestampField
+} from './firestoreAdminClient.mjs';
 
 const seededTrips = [
   {
@@ -29,27 +30,37 @@ const seededTrips = [
   }
 ];
 
-const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
+const normalizeUidList = (uids = []) => [...new Set(uids.filter(Boolean))].sort();
+
+const now = new Date().toISOString();
 
 for (const trip of seededTrips) {
-  const tripRef = doc(db, 'itineraries', trip.id);
-  const existingSnapshot = await getDoc(tripRef);
-  const existingData = existingSnapshot.exists() ? existingSnapshot.data() : {};
+  const existingDocument = await getDocument(`itineraries/${trip.id}`);
+  const existingFields = readFields(existingDocument);
+  const readerUids = normalizeUidList(readStringArrayField(existingFields, 'readerUids'));
+  const writerUids = normalizeUidList(readStringArrayField(existingFields, 'writerUids'));
+  const memberUids = normalizeUidList([
+    ...readStringArrayField(existingFields, 'memberUids'),
+    ...readerUids,
+    ...writerUids
+  ]);
 
-  await setDoc(
-    tripRef,
-    {
-      name: existingData.name ?? trip.name,
-      location: existingData.location ?? trip.location,
-      description: existingData.description ?? trip.description,
-      start_date: existingData.start_date ?? trip.start_date ?? null,
-      end_date: existingData.end_date ?? trip.end_date ?? null,
-      createdAt: existingData.createdAt ?? serverTimestamp(),
-      updatedAt: serverTimestamp()
-    },
-    { merge: true }
-  );
+  await patchDocument(`itineraries/${trip.id}`, {
+    name: asString(readStringField(existingFields, 'name') ?? trip.name),
+    location: asString(readStringField(existingFields, 'location') ?? trip.location),
+    description: asString(readStringField(existingFields, 'description') ?? trip.description),
+    start_date: asNullableString(
+      readStringField(existingFields, 'start_date') ?? trip.start_date ?? null
+    ),
+    end_date: asNullableString(
+      readStringField(existingFields, 'end_date') ?? trip.end_date ?? null
+    ),
+    readerUids: asStringArray(readerUids),
+    writerUids: asStringArray(writerUids),
+    memberUids: asStringArray(memberUids),
+    createdAt: asTimestamp(readTimestampField(existingFields, 'createdAt') ?? now),
+    updatedAt: asTimestamp(now)
+  });
 
   console.log(`Backfilled trip ${trip.id}`);
 }

@@ -1,32 +1,132 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import AccessManagementModal from '../components/AccessManagementModal';
+import AccessGate from '../components/AccessGate';
 import AuthControls from '../components/AuthControls';
 import TripModal from '../components/TripModal';
 import { useAuth } from '../context/AuthContext';
 import { formatDisplayDate } from '../utils/itineraryDates';
-import { createTrip, deleteTrip, subscribeToTrips, updateTrip } from '../utils/trips';
+import {
+  createTrip,
+  deleteTrip,
+  getTripRole,
+  subscribeToTrips,
+  subscribeToTripsByIds,
+  updateTrip,
+  updateTripAccess
+} from '../utils/trips';
+import { subscribeToKnownUsers } from '../utils/userRegistry';
+import { subscribeToUserTripAccess } from '../utils/userTripAccess';
 
 const LandingPage = () => {
-  const { isAdmin } = useAuth();
+  const { isSuperAdmin, isAuthLoading, user } = useAuth();
+  const userId = user?.uid || '';
   const [itineraries, setItineraries] = useState([]);
+  const [knownUsers, setKnownUsers] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
   const [isTripModalOpen, setIsTripModalOpen] = useState(false);
   const [editingTrip, setEditingTrip] = useState(null);
+  const [accessTrip, setAccessTrip] = useState(null);
 
   useEffect(() => {
-    const unsubscribe = subscribeToTrips(
-      (trips) => {
-        setItineraries(trips);
-        setIsLoading(false);
+    if (isAuthLoading) {
+      return;
+    }
+
+    if (!userId) {
+      setItineraries([]);
+      setLoadError('');
+      setIsLoading(false);
+      return;
+    }
+
+    setIsLoading(true);
+    setLoadError('');
+
+    if (isSuperAdmin) {
+      const unsubscribe = subscribeToTrips(
+        (trips) => {
+          setItineraries(trips);
+          setLoadError('');
+          setIsLoading(false);
+        },
+        (error) => {
+          console.error('Error subscribing to trips:', error);
+          setLoadError('Unable to load trips right now.');
+          setIsLoading(false);
+        }
+      );
+
+      return () => unsubscribe();
+    }
+
+    let unsubscribeTripSnapshots = () => {};
+
+    const unsubscribeAccess = subscribeToUserTripAccess(
+      userId,
+      (access) => {
+        unsubscribeTripSnapshots();
+
+        if (!access.tripIds.length) {
+          setItineraries([]);
+          setLoadError('');
+          setIsLoading(false);
+          return;
+        }
+
+        setIsLoading(true);
+
+        unsubscribeTripSnapshots = subscribeToTripsByIds(
+          access.tripIds,
+          (trips) => {
+            setItineraries(trips);
+            setLoadError('');
+            setIsLoading(false);
+          },
+          (error) => {
+            console.error('Error subscribing to allowed trips:', error);
+            setLoadError('Unable to load assigned trips right now.');
+            setIsLoading(false);
+          }
+        );
       },
       (error) => {
-        console.error('Error subscribing to trips:', error);
+        console.error('Error subscribing to user trip access:', error);
+        setItineraries([]);
+        setLoadError('Unable to load trip access right now.');
         setIsLoading(false);
       }
     );
 
+    return () => {
+      unsubscribeTripSnapshots();
+      unsubscribeAccess();
+    };
+  }, [isAuthLoading, isSuperAdmin, userId]);
+
+  useEffect(() => {
+    if (isAuthLoading || !isSuperAdmin) {
+      setKnownUsers([]);
+      return;
+    }
+
+    const unsubscribe = subscribeToKnownUsers(
+      (users) => {
+        setKnownUsers(users);
+      },
+      (error) => {
+        console.error('Error subscribing to known users:', error);
+        setKnownUsers([]);
+      }
+    );
+
     return () => unsubscribe();
-  }, []);
+  }, [isAuthLoading, isSuperAdmin]);
+
+  if (!isAuthLoading && !user) {
+    return <AccessGate />;
+  }
 
   const openCreateTripModal = () => {
     setEditingTrip(null);
@@ -36,6 +136,10 @@ const LandingPage = () => {
   const openEditTripModal = (trip) => {
     setEditingTrip(trip);
     setIsTripModalOpen(true);
+  };
+
+  const openAccessModal = (trip) => {
+    setAccessTrip(trip);
   };
 
   const handleTripSave = async (trip) => {
@@ -58,6 +162,12 @@ const LandingPage = () => {
 
     await deleteTrip(trip.id);
   };
+
+  const handleAccessSave = async ({ readerUids, writerUids }) => {
+    await updateTripAccess(accessTrip, { readerUids, writerUids });
+  };
+
+  const emptyStateLabel = user && !isSuperAdmin ? 'No trips assigned to this account yet' : 'No trips yet';
 
   return (
     <div
@@ -85,7 +195,7 @@ const LandingPage = () => {
         <p className="text-xs font-bold uppercase tracking-[0.3em] text-gray-500">
           Trips {isLoading ? '' : `(${itineraries.length})`}
         </p>
-        {isAdmin && (
+        {isSuperAdmin && (
           <button
             onClick={openCreateTripModal}
             className="border border-white px-4 py-3 text-xs font-bold uppercase tracking-[0.2em] text-white transition-colors hover:bg-white hover:text-black"
@@ -102,10 +212,12 @@ const LandingPage = () => {
           </div>
         ) : itineraries.length === 0 ? (
           <div className="col-span-full border border-[#333333] p-8 text-center text-sm font-bold uppercase tracking-[0.3em] text-gray-500">
-            No trips yet
+            {loadError || emptyStateLabel}
           </div>
         ) : (
           itineraries.map((itinerary) => {
+            const tripRole = getTripRole(itinerary, userId, isSuperAdmin);
+
             return (
               <div key={itinerary.id} className="relative">
                 <Link
@@ -118,6 +230,12 @@ const LandingPage = () => {
                     <h2 className="text-3xl font-black mb-2 uppercase tracking-tight text-white group-hover:text-[#0A0A0A]">
                       {itinerary.name || itinerary.id}
                     </h2>
+
+                    {!isSuperAdmin && (
+                      <p className="mb-3 text-[10px] font-bold uppercase tracking-[0.24em] text-gray-500 group-hover:text-[#333333]">
+                        {tripRole === 'write' ? 'Can Edit' : 'Read Only'}
+                      </p>
+                    )}
 
                     <p className="text-sm mb-3 flex items-center gap-2 text-gray-400 group-hover:text-[#333333]">
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -151,8 +269,18 @@ const LandingPage = () => {
                   </div>
                 </Link>
 
-                {isAdmin && (
-                  <div className="absolute left-4 top-4 z-10 flex gap-2">
+                {isSuperAdmin && (
+                  <div className="absolute left-4 top-4 z-10 flex flex-wrap gap-2">
+                    <button
+                      onClick={(event) => {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        openAccessModal(itinerary);
+                      }}
+                      className="border border-[#333333] bg-[#0A0A0A] px-3 py-2 text-[10px] font-bold uppercase tracking-[0.2em] text-white transition-colors hover:border-white hover:bg-white hover:text-black"
+                    >
+                      Manage Access
+                    </button>
                     <button
                       onClick={(event) => {
                         event.preventDefault();
@@ -190,6 +318,13 @@ const LandingPage = () => {
         isOpen={isTripModalOpen}
         onClose={() => setIsTripModalOpen(false)}
         onSave={handleTripSave}
+      />
+      <AccessManagementModal
+        isOpen={Boolean(accessTrip)}
+        trip={accessTrip}
+        knownUsers={knownUsers}
+        onClose={() => setAccessTrip(null)}
+        onSave={handleAccessSave}
       />
     </div>
   );

@@ -1,9 +1,11 @@
-export const ADMIN_EMAILS = ['charly729.chiu@gmail.com'];
+export const SUPER_ADMIN_EMAILS = ['charly729.chiu@gmail.com'];
 
-export const isAdminEmail = (email) => {
+export const normalizeEmail = (email = '') => email.trim().toLowerCase();
+
+export const isSuperAdminEmail = (email) => {
   if (!email) {
     return false;
   }
 
-  return ADMIN_EMAILS.includes(email.trim().toLowerCase());
+  return SUPER_ADMIN_EMAILS.includes(normalizeEmail(email));
 };

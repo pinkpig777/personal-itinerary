@@ -1,7 +1,7 @@
 import { useAuth } from '../context/AuthContext';
 
 export default function AuthControls({ compact = false }) {
-  const { authError, isAdmin, isAuthLoading, signInWithGoogle, signOutUser, user } = useAuth();
+  const { authError, isSuperAdmin, isAuthLoading, signInWithGoogle, signOutUser, user } = useAuth();
 
   const sharedButtonClasses = compact
     ? 'px-3 py-1.5 text-[10px] md:text-xs'
@@ -17,7 +17,7 @@ export default function AuthControls({ compact = false }) {
         <div className="flex items-center gap-2">
           <div className="border border-[#333333] px-3 py-2 text-right">
             <p className="text-[10px] font-black uppercase tracking-[0.25em] text-white">
-              {isAdmin ? 'Admin' : 'Read Only'}
+              {isSuperAdmin ? 'Super Admin' : 'Signed In'}
             </p>
             <p className="max-w-[180px] truncate text-[10px] uppercase tracking-[0.15em] text-gray-500">
               {user.email}
@@ -35,7 +35,7 @@ export default function AuthControls({ compact = false }) {
           onClick={signInWithGoogle}
           className={`${sharedButtonClasses} border border-white font-bold uppercase tracking-[0.2em] text-white transition-colors hover:bg-white hover:text-black`}
         >
-          Admin Sign In
+          Sign In
         </button>
       )}
 

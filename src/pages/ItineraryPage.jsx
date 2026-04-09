@@ -1,32 +1,64 @@
 import { useEffect, useState } from 'react';
 import { useParams, Navigate } from 'react-router-dom';
+import AccessGate from '../components/AccessGate';
 import { useAuth } from '../context/AuthContext';
 import { ThemeProvider } from '../context/ThemeContext';
 import ItineraryApp from '../ItineraryApp';
-import { subscribeToTrip, updateTrip } from '../utils/trips';
+import { getTripRole, subscribeToTrip, updateTrip } from '../utils/trips';
 
 const ItineraryPage = () => {
   const { id } = useParams();
-  const { isAdmin } = useAuth();
+  const { isSuperAdmin, isAuthLoading, user } = useAuth();
+  const userId = user?.uid || '';
   const [itinerary, setItinerary] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isAccessDenied, setIsAccessDenied] = useState(false);
 
   useEffect(() => {
+    setIsLoading(true);
+    setIsAccessDenied(false);
+
+    if (isAuthLoading) {
+      return;
+    }
+
+    if (!userId) {
+      setItinerary(null);
+      setIsLoading(false);
+      return;
+    }
+
     const unsubscribe = subscribeToTrip(
       id,
       (trip) => {
         setItinerary(trip);
+        setIsAccessDenied(false);
         setIsLoading(false);
       },
       (error) => {
         console.error('Error fetching itinerary:', error);
         setItinerary(null);
+        setIsAccessDenied(error?.code === 'permission-denied');
         setIsLoading(false);
       }
     );
 
     return () => unsubscribe();
-  }, [id]);
+  }, [id, isAuthLoading, userId]);
+
+  if (!isAuthLoading && !user) {
+    return <AccessGate title="Private Trip Access" />;
+  }
+
+  if (!isAuthLoading && isAccessDenied) {
+    return (
+      <AccessGate
+        isUnauthorized
+        title="Private Trip Access"
+        message="This Google account has not been assigned to this trip."
+      />
+    );
+  }
 
   const handleDatesUpdate = async (startDate, endDate) => {
     try {
@@ -38,7 +70,7 @@ const ItineraryPage = () => {
         end_date: endDate
       });
     } catch (error) {
-      console.error("Error updating itinerary dates:", error);
+      console.error('Error updating itinerary dates:', error);
     }
   };
 
@@ -54,13 +86,15 @@ const ItineraryPage = () => {
     );
   }
 
+  const canEdit = getTripRole(itinerary, userId, isSuperAdmin) === 'write';
+
   return (
     <ThemeProvider>
       <ItineraryApp 
         itineraryId={id} 
         itinerary={itinerary} 
         onDatesUpdate={handleDatesUpdate}
-        canEdit={isAdmin}
+        canEdit={canEdit}
       />
     </ThemeProvider>
   );
