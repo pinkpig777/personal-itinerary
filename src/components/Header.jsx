@@ -1,14 +1,89 @@
-import React from 'react';
+import React, { useState } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { useTheme } from '../context/ThemeContext';
+import DateEditModal from './DateEditModal';
 
-export default function Header() {
+export default function Header({ itinerary = null, onDatesUpdate = null }) {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { theme } = useTheme();
+  const [isDateModalOpen, setIsDateModalOpen] = useState(false);
+  
+  const isOnItinerary = location.pathname.startsWith('/itinerary/');
+
+  const handleDatesSave = (startDate, endDate) => {
+    if (onDatesUpdate) {
+      onDatesUpdate(startDate, endDate);
+    }
+  };
+
   return (
-    <header className="bg-aggie-maroon text-texas-sand p-6 shadow-[0_4px_20px_rgba(80,0,0,0.4)] rounded-b-2xl border-b-4 border-cowboy-leather relative overflow-hidden">
-      {/* Subtle texture/pattern effect could be added here in future, using CSS gradients for now */}
-      <div className="absolute inset-0 opacity-10 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-cowboy-leather via-transparent to-transparent pointer-events-none"></div>
-      <div className="relative z-10">
-        <h1 className="text-4xl font-western tracking-wider drop-shadow-md text-white">Howdy, C-Stat!</h1>
-        <p className="text-texas-sand/90 font-sans text-sm mt-2 font-bold tracking-widest uppercase">April 3 - April 5, 2026</p>
+    <header 
+      style={{
+        backgroundColor: theme.background
+      }} 
+      className="p-6 md:p-8 shadow-none rounded-none relative overflow-hidden z-30"
+    >
+      {/* Solid flat header, removed texture patterns */}
+      
+      <div className="relative z-10 flex items-center justify-between">
+        <div className="flex-1">
+          <div className="flex items-start gap-3">
+            {isOnItinerary && (
+              <button
+                onClick={() => navigate('/')}
+                className="p-2 mt-2 hover:opacity-80 transition-opacity"
+                title="Back to itineraries"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                </svg>
+              </button>
+            )}
+            <div>
+              <h1 
+                className={`text-5xl md:text-6xl tracking-tight font-black font-sans text-white`}
+              >
+                {itinerary ? `Howdy, ${itinerary.name}!` : 'Itinerary'}
+              </h1>
+              <div className="flex items-center gap-2 mt-2">
+                {itinerary && (
+                  <>
+                    {itinerary.start_date && itinerary.end_date ? (
+                      <p className={`font-sans text-sm font-bold tracking-widest uppercase text-white opacity-90`}>
+                        {new Date(itinerary.start_date + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - {new Date(itinerary.end_date + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                      </p>
+                    ) : (
+                      <p className={`font-sans text-sm font-bold tracking-widest uppercase italic text-white opacity-70`}>
+                        Dates not set
+                      </p>
+                    )}
+                    {isOnItinerary && (
+                      <button
+                        onClick={() => setIsDateModalOpen(true)}
+                        className={`transition-colors p-1 text-white opacity-80 hover:opacity-100 hover:text-[color:var(--theme-secondary)]`}
+                        title="Edit dates"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                        </svg>
+                      </button>
+                    )}
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
+
+      <DateEditModal
+        isOpen={isDateModalOpen}
+        onClose={() => setIsDateModalOpen(false)}
+        onSave={handleDatesSave}
+        startDate={itinerary?.start_date}
+        endDate={itinerary?.end_date}
+      />
     </header>
   );
 }

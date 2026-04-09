@@ -1,13 +1,17 @@
 import React from 'react';
-import ItineraryApp from './ItineraryApp'; // Make sure the path matches where you saved the file
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import LandingPage from './pages/LandingPage';
+import ItineraryPage from './pages/ItineraryPage';
 
 function App() {
   return (
-    // The wrapper div can be used for global styling if needed, 
-    // but the ItineraryApp component handles its own layout.
-    <div className="App">
-      <ItineraryApp />
-    </div>
+    <Router>
+      <Routes>
+        <Route path="/" element={<LandingPage />} />
+        <Route path="/itinerary/:id" element={<ItineraryPage />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </Router>
   );
 }
 
