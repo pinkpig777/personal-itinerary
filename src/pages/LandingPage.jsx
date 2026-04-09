@@ -171,11 +171,16 @@ const LandingPage = () => {
 
   return (
     <div
-      className="min-h-screen flex flex-col items-center justify-center p-4 relative overflow-hidden bg-[#0A0A0A] font-sans"
+      className="min-h-screen flex flex-col items-center justify-center p-4 pt-24 relative overflow-hidden bg-[#0A0A0A] font-sans md:pt-28"
     >
-      <div className="w-full max-w-4xl flex justify-end relative z-10 mb-6">
-        <AuthControls />
+      <div className="absolute right-4 top-4 z-20 md:right-8 md:top-8">
+        <AuthControls compact showStatus={false} />
       </div>
+      {user && (
+        <div className="absolute left-1/2 top-14 z-20 -translate-x-1/2 md:top-8">
+          <AuthControls showAction={false} align="center" />
+        </div>
+      )}
 
       <div className="text-center mb-12 relative z-10">
         <div className="inline-flex items-center gap-2 px-6 py-2 border border-[#333333] text-gray-400 text-[11px] font-bold uppercase tracking-[0.35em] mb-5">
