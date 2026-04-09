@@ -15,8 +15,10 @@ import {
 import { db } from '../firebase';
 
 const TRIPS_COLLECTION = 'itineraries';
+const TRIP_MEMBERS_SUBCOLLECTION = 'members';
+const USERS_PRIVATE_COLLECTION = 'users_private';
 const USER_TRIP_ACCESS_COLLECTION = 'user_trip_access';
-const TRIP_SUBCOLLECTIONS = ['spots', 'expenses', 'roulette'];
+const TRIP_SUBCOLLECTIONS = ['spots', 'expenses', 'roulette', TRIP_MEMBERS_SUBCOLLECTION];
 const TRIP_SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const EMPTY_TRIP_ACCESS = {
   readerUids: [],
@@ -55,6 +57,13 @@ const normalizeUidList = (uids = []) => {
   return [...new Set(uids.filter(Boolean))].sort();
 };
 
+const compareTripMembers = (left, right) => {
+  const leftLabel = (left.label || left.uid).toLowerCase();
+  const rightLabel = (right.label || right.uid).toLowerCase();
+
+  return leftLabel.localeCompare(rightLabel);
+};
+
 const normalizeTripAccess = ({ readerUids = [], writerUids = [] } = {}) => {
   const normalizedWriterUids = normalizeUidList(writerUids);
   const normalizedReaderUids = normalizeUidList(readerUids).filter(
@@ -79,6 +88,15 @@ const normalizeTripPayload = (trip) => ({
   start_date: trip.start_date || null,
   end_date: trip.end_date || null
 });
+
+const resolveMemberLabel = (uid, userProfile = null, existingMember = null) => {
+  return (
+    userProfile?.displayName?.trim()
+    || userProfile?.emailLower
+    || existingMember?.label
+    || uid
+  );
+};
 
 const normalizeTripRecord = (tripId, tripData = {}) => {
   const access = normalizeTripAccess({
@@ -149,6 +167,23 @@ export const subscribeToTrip = (tripId, onValue, onError) => {
       }
 
       onValue(normalizeTripRecord(snapshot.id, snapshot.data()));
+    },
+    onError
+  );
+};
+
+export const subscribeToTripMembers = (tripId, onValue, onError) => {
+  return onSnapshot(
+    collection(db, TRIPS_COLLECTION, tripId, TRIP_MEMBERS_SUBCOLLECTION),
+    (snapshot) => {
+      const members = snapshot.docs
+        .map((memberDoc) => ({
+          uid: memberDoc.id,
+          ...memberDoc.data()
+        }))
+        .sort(compareTripMembers);
+
+      onValue(members);
     },
     onError
   );
@@ -254,6 +289,50 @@ const syncUserTripAccessDoc = async (userId, tripId, access) => {
   );
 };
 
+const syncTripMemberDocs = async (tripId, access) => {
+  const memberCollectionRef = collection(db, TRIPS_COLLECTION, tripId, TRIP_MEMBERS_SUBCOLLECTION);
+  const currentMembersSnapshot = await getDocs(memberCollectionRef);
+  const currentMembersById = new Map(
+    currentMembersSnapshot.docs.map((memberDoc) => [memberDoc.id, memberDoc.data()])
+  );
+  const userIds = normalizeUidList(access.memberUids);
+
+  if (userIds.length === 0 && currentMembersSnapshot.empty) {
+    return;
+  }
+
+  const userProfileSnapshots = await Promise.all(
+    userIds.map((userId) => getDoc(doc(db, USERS_PRIVATE_COLLECTION, userId)))
+  );
+  const batch = writeBatch(db);
+  const remainingUserIds = new Set(userIds);
+
+  currentMembersSnapshot.docs.forEach((memberDoc) => {
+    if (!remainingUserIds.has(memberDoc.id)) {
+      batch.delete(memberDoc.ref);
+    }
+  });
+
+  userIds.forEach((userId, index) => {
+    const profileSnapshot = userProfileSnapshots[index];
+    const currentMember = currentMembersById.get(userId);
+    const role = access.writerUids.includes(userId) ? 'write' : 'read';
+    const label = resolveMemberLabel(
+      userId,
+      profileSnapshot.exists() ? profileSnapshot.data() : null,
+      currentMember
+    );
+
+    batch.set(doc(memberCollectionRef, userId), {
+      label,
+      role,
+      updatedAt: serverTimestamp()
+    });
+  });
+
+  await batch.commit();
+};
+
 export const updateTripAccess = async (trip, access) => {
   const normalizedAccess = normalizeTripAccess(access);
   const previousAccess = normalizeTripAccess({
@@ -271,7 +350,10 @@ export const updateTripAccess = async (trip, access) => {
   });
 
   await Promise.all(
-    affectedUserIds.map((userId) => syncUserTripAccessDoc(userId, trip.id, normalizedAccess))
+    [
+      ...affectedUserIds.map((userId) => syncUserTripAccessDoc(userId, trip.id, normalizedAccess)),
+      syncTripMemberDocs(trip.id, normalizedAccess)
+    ]
   );
 };
 

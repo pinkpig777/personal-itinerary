@@ -8,15 +8,65 @@ const FIREBASE_CLI_CONFIG = path.join(
   'configstore',
   'firebase-tools.json'
 );
+const FIREBASE_CLIENT_ID = '563584335869-fgrhgmd47bqnekij5i8b5pr03ho849e6.apps.googleusercontent.com';
+const FIREBASE_CLIENT_SECRET = 'j9iVZfS8kkCEFUPaAeJV0sAi';
+const FIREBASE_TOKEN_URL = 'https://www.googleapis.com/oauth2/v3/token';
 
-const assertFreshAccessToken = (config) => {
+const saveFirebaseCliConfig = async (config) => {
+  await fs.writeFile(FIREBASE_CLI_CONFIG, JSON.stringify(config, null, 2));
+};
+
+const refreshAccessToken = async (config) => {
+  const refreshToken = config?.tokens?.refresh_token;
+
+  if (!refreshToken) {
+    throw new Error(
+      'Firebase CLI refresh token is missing. Run `npx -y firebase-tools@latest login` and try again.'
+    );
+  }
+
+  const response = await fetch(FIREBASE_TOKEN_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded'
+    },
+    body: new URLSearchParams({
+      refresh_token: refreshToken,
+      client_id: FIREBASE_CLIENT_ID,
+      client_secret: FIREBASE_CLIENT_SECRET,
+      grant_type: 'refresh_token'
+    })
+  });
+  const responseBody = await response.json();
+
+  if (!response.ok || !responseBody.access_token) {
+    throw new Error(
+      'Firebase CLI access token refresh failed. Run `npx -y firebase-tools@latest login --reauth` and try again.'
+    );
+  }
+
+  const nextTokens = {
+    ...config.tokens,
+    ...responseBody,
+    refresh_token: refreshToken,
+    expires_at: Date.now() + (Number(responseBody.expires_in || 3600) * 1000)
+  };
+  const nextConfig = {
+    ...config,
+    tokens: nextTokens
+  };
+
+  await saveFirebaseCliConfig(nextConfig);
+
+  return nextTokens.access_token;
+};
+
+const assertFreshAccessToken = async (config) => {
   const accessToken = config?.tokens?.access_token;
   const expiresAt = config?.tokens?.expires_at ?? 0;
 
   if (!accessToken || Date.now() >= expiresAt - 60_000) {
-    throw new Error(
-      'Firebase CLI access token is missing or expired. Run `npx -y firebase-tools@latest login` and try again.'
-    );
+    return refreshAccessToken(config);
   }
 
   return accessToken;

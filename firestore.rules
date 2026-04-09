@@ -28,6 +28,7 @@ service cloud.firestore {
     //   - updatedAt: timestamp
     //
     // Subcollections:
+    //   - itineraries/{slug}/members/{uid}
     //   - itineraries/{slug}/spots/{spotId}
     //   - itineraries/{slug}/expenses/{expenseId}
     //   - itineraries/{slug}/roulette/{optionId}
@@ -236,6 +237,15 @@ service cloud.firestore {
         && data.participants.size() <= 50;
     }
 
+    function isValidTripMemberProjection(data) {
+      return hasOnlyAllowedFields(data, ['label', 'role', 'updatedAt'])
+        && hasRequiredFields(data, ['label', 'role', 'updatedAt'])
+        && isValidRequiredString(data.label, 320)
+        && data.role is string
+        && data.role in ['read', 'write']
+        && data.updatedAt is timestamp;
+    }
+
     function isValidRouletteOption(data) {
       return hasOnlyAllowedFields(data, ['name'])
         && hasRequiredFields(data, ['name'])
@@ -275,6 +285,12 @@ service cloud.firestore {
           && isValidTripData(request.resource.data)
           && protectedTripFieldsUnchanged()
         );
+
+      match /members/{userId} {
+        allow read: if canReadTripById(itineraryId);
+        allow create, update: if isSuperAdmin() && isValidTripMemberProjection(request.resource.data);
+        allow delete: if isSuperAdmin();
+      }
 
       match /spots/{spotId} {
         allow read: if canReadTripById(itineraryId);

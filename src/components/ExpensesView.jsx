@@ -2,9 +2,13 @@ import { useEffect, useMemo, useState } from 'react';
 import { collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc } from 'firebase/firestore';
 import { db } from '../firebase';
 import ExpenseModal from './ExpenseModal';
+import { useAuth } from '../context/AuthContext';
+import { subscribeToTripMembers } from '../utils/trips';
 
 export default function ExpensesView({ canEdit = false, itineraryId = 'cstat' }) {
+  const { isSuperAdmin, user } = useAuth();
   const [expenses, setExpenses] = useState([]);
+  const [tripMembers, setTripMembers] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingExpense, setEditingExpense] = useState(null);
 
@@ -17,14 +21,49 @@ export default function ExpensesView({ canEdit = false, itineraryId = 'cstat' })
     return () => unsubscribe();
   }, [itineraryId]);
 
+  useEffect(() => {
+    const unsubscribe = subscribeToTripMembers(
+      itineraryId,
+      (members) => {
+        setTripMembers(members);
+      },
+      (error) => {
+        console.error('Error fetching trip members:', error);
+        setTripMembers([]);
+      }
+    );
+
+    return () => unsubscribe();
+  }, [itineraryId]);
+
+  const superAdminLabel = useMemo(() => {
+    if (!isSuperAdmin) {
+      return '';
+    }
+
+    return user?.displayName?.trim() || user?.email?.trim().toLowerCase() || '';
+  }, [isSuperAdmin, user?.displayName, user?.email]);
+
   const allMembers = useMemo(() => {
     const members = new Set();
+
+    tripMembers.forEach((member) => {
+      if (member.label) {
+        members.add(member.label);
+      }
+    });
+
     expenses.forEach(exp => {
       members.add(exp.payer);
       if (exp.participants) exp.participants.forEach(p => members.add(p));
     });
+
+    if (superAdminLabel) {
+      members.add(superAdminLabel);
+    }
+
     return Array.from(members).sort();
-  }, [expenses]);
+  }, [expenses, superAdminLabel, tripMembers]);
 
   const settlements = useMemo(() => {
     const balances = {}; 
@@ -112,6 +151,28 @@ export default function ExpensesView({ canEdit = false, itineraryId = 'cstat' })
               </li>
             ))}
           </ul>
+        )}
+      </div>
+
+      <div className="bg-[#1E1E1E] rounded-xl border border-[#333333] p-5">
+        <div className="border-b border-[#333333] pb-2 mb-3">
+          <h2 className="font-black font-sans text-white text-2xl tracking-tight">Expense Candidates</h2>
+        </div>
+        {allMembers.length === 0 ? (
+          <p className="text-center text-gray-400 mt-6 mb-4 text-sm font-medium">
+            No trip members or expense participants available yet.
+          </p>
+        ) : (
+          <div className="mt-4 flex flex-wrap gap-2">
+            {allMembers.map((member) => (
+              <span
+                key={member}
+                className="rounded-full border border-[#333333] bg-[#121212] px-3 py-1 text-xs font-bold uppercase tracking-[0.16em] text-gray-300"
+              >
+                {member}
+              </span>
+            ))}
+          </div>
         )}
       </div>
 
