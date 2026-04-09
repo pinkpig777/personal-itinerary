@@ -1,12 +1,11 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { useTheme } from '../context/ThemeContext';
 import DateEditModal from './DateEditModal';
+import { formatDisplayDateRange } from '../utils/itineraryDates';
 
 export default function Header({ itinerary = null, onDatesUpdate = null }) {
   const navigate = useNavigate();
   const location = useLocation();
-  const { theme } = useTheme();
   const [isDateModalOpen, setIsDateModalOpen] = useState(false);
   
   const isOnItinerary = location.pathname.startsWith('/itinerary/');
@@ -18,12 +17,7 @@ export default function Header({ itinerary = null, onDatesUpdate = null }) {
   };
 
   return (
-    <header 
-      style={{
-        backgroundColor: theme.background
-      }} 
-      className="p-6 md:p-8 shadow-none rounded-none relative overflow-hidden z-30"
-    >
+    <header className="p-6 md:p-8 relative overflow-hidden z-30">
       {/* Solid flat header, removed texture patterns */}
       
       <div className="relative z-10 flex items-center justify-between">
@@ -42,16 +36,16 @@ export default function Header({ itinerary = null, onDatesUpdate = null }) {
             )}
             <div>
               <h1 
-                className={`text-5xl md:text-6xl tracking-tight font-black font-sans text-white`}
+                className="text-5xl md:text-7xl tracking-tighter font-black font-sans text-white uppercase"
               >
-                {itinerary ? `Howdy, ${itinerary.name}!` : 'Itinerary'}
+                {itinerary ? `${itinerary.name}` : 'Itinerary'}
               </h1>
               <div className="flex items-center gap-2 mt-2">
                 {itinerary && (
                   <>
                     {itinerary.start_date && itinerary.end_date ? (
                       <p className={`font-sans text-sm font-bold tracking-widest uppercase text-white opacity-90`}>
-                        {new Date(itinerary.start_date + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - {new Date(itinerary.end_date + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                        {formatDisplayDateRange(itinerary.start_date, itinerary.end_date)}
                       </p>
                     ) : (
                       <p className={`font-sans text-sm font-bold tracking-widest uppercase italic text-white opacity-70`}>

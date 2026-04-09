@@ -1,7 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc } from 'firebase/firestore';
 import { db } from './firebase';
-import { useTheme } from './context/ThemeContext';
 
 import Header from './components/Header';
 import Tabs from './components/Tabs';
@@ -13,10 +12,10 @@ import ToolsMenu from './components/ToolsMenu';
 import RouletteView from './components/RouletteView';
 
 export default function ItineraryApp({ itineraryId = 'cstat', itinerary = null, onDatesUpdate = null }) {
-  const { theme } = useTheme();
   const [spots, setSpots] = useState([]);
-  const [activeTab, setActiveTab] = useState('4/3');
+  const [activeTab, setActiveTab] = useState('');
   const [appMode, setAppMode] = useState('schedule'); // schedule, tools, money-split
+  const hasScheduleDates = Boolean(itinerary?.start_date && itinerary?.end_date);
   
   // State for the Add/Edit Modal
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -59,7 +58,8 @@ export default function ItineraryApp({ itineraryId = 'cstat', itinerary = null, 
       if (editingSpot && editingSpot.id) {
         // Update existing spot
         const spotRef = doc(db, 'itineraries', itineraryId, 'spots', editingSpot.id);
-        const { id, ...dataToUpdate } = formData;
+        const dataToUpdate = { ...formData };
+        delete dataToUpdate.id;
         await updateDoc(spotRef, dataToUpdate);
       } else {
         // Add new spot
@@ -73,43 +73,24 @@ export default function ItineraryApp({ itineraryId = 'cstat', itinerary = null, 
   };
 
   return (
-    <div 
-      style={{
-        backgroundColor: theme.background,
-        color: theme.text
-      }}
-      className="min-h-screen font-sans pb-20 selection:text-white transition-colors duration-300"
-    >
+    <div className="min-h-screen bg-[#0A0A0A] font-sans pb-20 text-white transition-colors duration-300">
       <Header itinerary={itinerary} onDatesUpdate={onDatesUpdate} />
       
       <div 
-        className="flex justify-center sticky top-6 z-40 mb-6 px-4"
+        className="flex w-full justify-center sticky top-0 z-40 mb-6 px-4 bg-[#0A0A0A] border-b border-[#333333]"
       >
-        <div 
-          className="flex w-64 p-1 gap-2 rounded-lg"
-          style={{ backgroundColor: theme.background }}
-        >
+        <div className="flex w-64">
           <button 
             onClick={() => { setAppMode('schedule'); }}
-            className="flex-1 py-2 text-xs font-bold uppercase tracking-wider border transition-colors duration-200"
-            style={{
-              backgroundColor: appMode === 'schedule' ? theme.light : 'transparent',
-              color: appMode === 'schedule' ? theme.primary : theme.accent,
-              borderColor: appMode === 'schedule' ? theme.secondary : 'transparent'
-            }}
+            className={`flex-1 py-4 text-xs font-bold uppercase tracking-widest transition-colors duration-200 border-b-2 bg-transparent ${appMode === 'schedule' ? 'border-white text-white' : 'border-transparent text-[#333333] hover:text-gray-400'}`}
           >
-            📅 Schedule
+            Schedule
           </button>
           <button 
             onClick={() => setAppMode('tools')}
-            className="flex-1 py-2 text-xs font-bold uppercase tracking-wider border transition-colors duration-200"
-            style={{
-              backgroundColor: appMode !== 'schedule' ? theme.light : 'transparent',
-              color: appMode !== 'schedule' ? theme.primary : theme.accent,
-              borderColor: appMode !== 'schedule' ? theme.secondary : 'transparent'
-            }}
+            className={`flex-1 py-4 text-xs font-bold uppercase tracking-widest transition-colors duration-200 border-b-2 bg-transparent ${appMode !== 'schedule' ? 'border-white text-white' : 'border-transparent text-[#333333] hover:text-gray-400'}`}
           >
-            🧰 Tools
+            Tools
           </button>
         </div>
       </div>
@@ -123,10 +104,10 @@ export default function ItineraryApp({ itineraryId = 'cstat', itinerary = null, 
               activeTab={activeTab} 
               onEdit={openModal} 
               onDelete={handleDelete}
-              onAdd={() => openModal()}
+              onAdd={hasScheduleDates ? () => openModal() : null}
             />
           </main>
-          <FloatingActionButton onClick={() => openModal()} />
+          {hasScheduleDates && <FloatingActionButton onClick={() => openModal()} />}
         </>
       )}
 
@@ -160,7 +141,7 @@ export default function ItineraryApp({ itineraryId = 'cstat', itinerary = null, 
         onSave={handleSave} 
         editingSpot={editingSpot} 
         activeTab={activeTab}
-        itineraryId={itineraryId}
+        itinerary={itinerary}
       />
     </div>
   );

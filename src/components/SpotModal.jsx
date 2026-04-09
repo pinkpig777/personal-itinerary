@@ -1,21 +1,55 @@
-import React, { useState, useEffect } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { formatDateKey, getItineraryDateOptions, matchesDateKey } from '../utils/itineraryDates';
 
-export default function SpotModal({ isOpen, onClose, onSave, editingSpot, activeTab }) {
-  const [formData, setFormData] = useState({ date: activeTab, time: '12:00', title: '', description: '', googleMapsLink: '' });
+const createEmptyFormData = (date = '') => ({
+  date,
+  time: '12:00',
+  title: '',
+  description: '',
+  googleMapsLink: ''
+});
+
+export default function SpotModal({ isOpen, onClose, onSave, editingSpot, activeTab, itinerary }) {
+  const dateOptions = useMemo(() => {
+    return getItineraryDateOptions(itinerary?.start_date, itinerary?.end_date);
+  }, [itinerary?.end_date, itinerary?.start_date]);
+  const defaultDate = useMemo(() => {
+    const activeOption = dateOptions.find((option) => matchesDateKey(option.key, activeTab));
+
+    return activeOption?.key || dateOptions[0]?.key || formatDateKey(activeTab);
+  }, [activeTab, dateOptions]);
+  const [formData, setFormData] = useState(() => createEmptyFormData(defaultDate));
 
   useEffect(() => {
-    if (editingSpot) {
-      setFormData(editingSpot);
-    } else {
-      setFormData({ date: activeTab, time: '12:00', title: '', description: '', googleMapsLink: '' });
+    if (!isOpen) {
+      return;
     }
-  }, [editingSpot, activeTab, isOpen]);
+
+    if (editingSpot) {
+      const matchedDate = dateOptions.find((option) => matchesDateKey(option.key, editingSpot.date));
+
+      setFormData({
+        ...createEmptyFormData(defaultDate),
+        ...editingSpot,
+        date: matchedDate?.key || formatDateKey(editingSpot.date) || defaultDate
+      });
+    } else {
+      setFormData(createEmptyFormData(defaultDate));
+    }
+  }, [dateOptions, defaultDate, editingSpot, isOpen]);
 
   if (!isOpen) return null;
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    onSave(formData);
+    if (!formData.date) {
+      return;
+    }
+
+    onSave({
+      ...formData,
+      date: formatDateKey(formData.date)
+    });
   };
 
   return (
@@ -26,15 +60,33 @@ export default function SpotModal({ isOpen, onClose, onSave, editingSpot, active
           <div className="flex gap-4">
             <div className="flex-1">
               <label className="block text-xs font-bold uppercase tracking-widest text-gray-400 mb-1">Date</label>
-              <select 
-                value={formData.date} 
-                onChange={e => setFormData({...formData, date: e.target.value})}
-                className="w-full border border-[#333333] bg-[#121212] text-white rounded-md p-2 text-sm focus:outline-none focus:border-white transition-colors"
-              >
-                <option value="4/3">Fri 4/3</option>
-                <option value="4/4">Sat 4/4</option>
-                <option value="4/5">Sun 4/5</option>
-              </select>
+              {dateOptions.length > 0 ? (
+                <select 
+                  value={formData.date} 
+                  onChange={e => setFormData({...formData, date: e.target.value})}
+                  className="w-full border border-[#333333] bg-[#121212] text-white rounded-md p-2 text-sm focus:outline-none focus:border-white transition-colors"
+                >
+                  {dateOptions.map((option) => (
+                    <option key={option.key} value={option.key}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <>
+                  <input
+                    type="text"
+                    value={formData.date || 'Set trip dates first'}
+                    readOnly
+                    className="w-full border border-[#333333] bg-[#121212] text-gray-400 rounded-md p-2 text-sm focus:outline-none"
+                  />
+                  {!formData.date && (
+                    <p className="mt-2 text-xs font-medium text-gray-500">
+                      Set the itinerary dates in the header before creating new spots.
+                    </p>
+                  )}
+                </>
+              )}
             </div>
             <div className="flex-1">
               <label className="block text-xs font-bold uppercase tracking-widest text-gray-400 mb-1">Time (24h)</label>
@@ -80,7 +132,7 @@ export default function SpotModal({ isOpen, onClose, onSave, editingSpot, active
           </div>
           <div className="pt-6 flex justify-end gap-4 mt-2">
             <button type="button" onClick={onClose} className="px-5 py-2 text-gray-400 font-bold uppercase tracking-widest text-sm hover:text-white transition-colors">Cancel</button>
-            <button type="submit" className="px-6 py-2 bg-white text-[#121212] rounded-md font-bold hover:bg-gray-200 active:scale-95 transition-all text-sm uppercase tracking-widest border border-white">Save Spot</button>
+            <button type="submit" disabled={!formData.date} className="px-6 py-2 bg-white text-[#121212] rounded-md font-bold hover:bg-gray-200 active:scale-95 transition-all text-sm uppercase tracking-widest border border-white disabled:cursor-not-allowed disabled:border-[#333333] disabled:bg-[#121212] disabled:text-gray-500">Save Spot</button>
           </div>
         </form>
       </div>

@@ -13,8 +13,7 @@ export default {
         'denim-blue': '#2C3E50',
       },
       fontFamily: {
-        western: ['Rye', 'serif'],
-        sans: ['Inter', 'sans-serif'],
+        sans: ['"Space Grotesk"', 'sans-serif'],
       }
     },
   },

@@ -1,9 +1,19 @@
-import React, { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 export default function DateEditModal({ isOpen, onClose, onSave, startDate, endDate }) {
   const [localStart, setLocalStart] = useState(startDate || '');
   const [localEnd, setLocalEnd] = useState(endDate || '');
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (!isOpen) {
+      return;
+    }
+
+    setLocalStart(startDate || '');
+    setLocalEnd(endDate || '');
+    setError('');
+  }, [endDate, isOpen, startDate]);
 
   const handleSave = () => {
     setError('');
@@ -23,12 +33,6 @@ export default function DateEditModal({ isOpen, onClose, onSave, startDate, endD
 
     onSave(localStart, localEnd);
     onClose();
-  };
-
-  const handleOpenChange = (e) => {
-    const dateValue = e.target.value;
-    console.log('Date:', dateValue);
-    setLocalStart(dateValue);
   };
 
   if (!isOpen) return null;

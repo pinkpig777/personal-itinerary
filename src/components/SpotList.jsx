@@ -1,15 +1,13 @@
-import React, { useMemo } from 'react';
-import { useTheme } from '../context/ThemeContext';
+import { useMemo } from 'react';
 import SpotItem from './SpotItem';
+import { matchesDateKey } from '../utils/itineraryDates';
 
 export default function SpotList({ spots, activeTab, onEdit, onDelete, onAdd }) {
-  const { theme } = useTheme();
-
   // Filter by active tab and sort by time ascending
   const displayedSpots = useMemo(() => {
     return spots
-      .filter(spot => spot.date === activeTab)
-      .sort((a, b) => a.time.localeCompare(b.time));
+      .filter((spot) => matchesDateKey(spot.date, activeTab))
+      .sort((a, b) => (a.time || '').localeCompare(b.time || ''));
   }, [spots, activeTab]);
 
   if (displayedSpots.length === 0) {
@@ -21,13 +19,7 @@ export default function SpotList({ spots, activeTab, onEdit, onDelete, onAdd }) 
         {onAdd && (
           <button
             onClick={onAdd}
-            className="px-8 py-3 rounded-md font-bold uppercase tracking-widest border-2 transition-transform active:scale-95 flex items-center gap-2 hover:-translate-y-0.5 hover:translate-x-0.5"
-            style={{
-              backgroundColor: theme.primary,
-              color: theme.dark,
-              borderColor: theme.secondary,
-              boxShadow: `-4px 4px 0px 0px #333333`
-            }}
+            className="px-8 py-3 rounded-none font-bold uppercase tracking-widest border border-white text-white bg-transparent transition-colors duration-0 flex items-center gap-2 hover:bg-white hover:text-[#0A0A0A]"
           >
             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />

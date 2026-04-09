@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 
 export default function ExpenseModal({ isOpen, onClose, onSave, editingExpense, allMembers }) {
   const [formData, setFormData] = useState({ title: '', payer: '', amount: '', participants: [] });

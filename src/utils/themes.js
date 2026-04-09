@@ -5,13 +5,13 @@
 
 export const themes = {
   universal: {
-    name: 'Urban',
-    primary: '#FFFFFF', // White for highlights/buttons
-    secondary: '#333333', // Borders/Muted
-    background: '#121212', // App Background
+    name: 'Brutalist',
+    primary: '#FFFFFF', // White
+    secondary: '#333333', // Muted borders
+    background: '#0A0A0A', // True Black
     text: '#FFFFFF', // Main text
-    accent: '#9CA3AF', // Gray-400 for secondary text
-    light: '#1E1E1E', // Card backgrounds
+    accent: '#333333', // Gray text
+    light: 'transparent', // No card backgrounds
     dark: '#000000'
   }
 };

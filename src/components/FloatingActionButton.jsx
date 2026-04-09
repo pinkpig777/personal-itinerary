@@ -1,19 +1,8 @@
-import React from 'react';
-import { useTheme } from '../context/ThemeContext';
-
 export default function FloatingActionButton({ onClick }) {
-  const { theme } = useTheme();
-
   return (
     <button 
       onClick={onClick}
-      style={{
-        backgroundColor: theme.background,
-        color: theme.primary,
-        borderColor: theme.secondary,
-        boxShadow: `-4px 4px 0px 0px #333333`
-      }}
-      className="fixed bottom-6 right-6 w-16 h-16 rounded-md text-4xl flex items-center justify-center pb-1 hover:scale-105 transition-transform duration-200 z-20 border-2"
+      className="fixed bottom-6 right-6 w-16 h-16 rounded-none border border-white bg-[#0A0A0A] text-white text-4xl flex items-center justify-center hover:bg-white hover:text-[#0A0A0A] transition-colors duration-0 z-20"
     >
       +
     </button>

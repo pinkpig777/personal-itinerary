@@ -1,6 +1,3 @@
-import React from 'react';
-import { useTheme } from '../context/ThemeContext';
-
 // Format 24h time string (e.g., "15:00") to 12h string (e.g., "3:00 PM")
 const formatTime = (timeStr) => {
   if (!timeStr) return '';
@@ -12,16 +9,9 @@ const formatTime = (timeStr) => {
 };
 
 export default function SpotItem({ spot, onEdit, onDelete }) {
-  const { theme } = useTheme();
-
   return (
     <div
-      className="rounded-3xl p-6 flex gap-4 items-start relative overflow-hidden transition-all duration-300 group border"
-      style={{
-        backgroundColor: theme.light,
-        borderColor: theme.secondary,
-        boxShadow: 'none'
-      }}
+      className="rounded-none p-6 flex gap-4 items-start relative overflow-hidden transition-all duration-0 group border border-[#333333] bg-transparent hover:border-white"
     >
       <div className="flex-1">
         <p className="text-xs font-bold uppercase tracking-widest mb-1 text-gray-500">
