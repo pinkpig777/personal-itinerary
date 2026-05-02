@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { formatDateKey, getItineraryDateOptions, matchesDateKey } from '../utils/itineraryDates';
+import { formatIsoDate, getItineraryDateOptions, matchesDateKey } from '../utils/itineraryDates';
 
 const createEmptyFormData = (date = '') => ({
   date,
@@ -16,7 +16,7 @@ export default function SpotModal({ isOpen, onClose, onSave, editingSpot, active
   const defaultDate = useMemo(() => {
     const activeOption = dateOptions.find((option) => matchesDateKey(option.key, activeTab));
 
-    return activeOption?.key || dateOptions[0]?.key || formatDateKey(activeTab);
+    return activeOption?.key || dateOptions[0]?.key || formatIsoDate(activeTab);
   }, [activeTab, dateOptions]);
   const [formData, setFormData] = useState(() => createEmptyFormData(defaultDate));
 
@@ -31,7 +31,7 @@ export default function SpotModal({ isOpen, onClose, onSave, editingSpot, active
       setFormData({
         ...createEmptyFormData(defaultDate),
         ...editingSpot,
-        date: matchedDate?.key || formatDateKey(editingSpot.date) || defaultDate
+        date: matchedDate?.key || formatIsoDate(editingSpot.date) || defaultDate
       });
     } else {
       setFormData(createEmptyFormData(defaultDate));
@@ -48,7 +48,7 @@ export default function SpotModal({ isOpen, onClose, onSave, editingSpot, active
 
     onSave({
       ...formData,
-      date: formatDateKey(formData.date)
+      date: formatIsoDate(formData.date)
     });
   };
 

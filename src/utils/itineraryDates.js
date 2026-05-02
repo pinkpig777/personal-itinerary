@@ -91,6 +91,20 @@ export const formatDateKey = (value) => {
   return `${parsed.getMonth() + 1}/${parsed.getDate()}`;
 };
 
+export const formatIsoDate = (value) => {
+  const parsed = createNoonDate(value);
+
+  if (!parsed) {
+    return '';
+  }
+
+  const year = parsed.getFullYear();
+  const month = String(parsed.getMonth() + 1).padStart(2, '0');
+  const day = String(parsed.getDate()).padStart(2, '0');
+
+  return `${year}-${month}-${day}`;
+};
+
 export const matchesDateKey = (left, right) => {
   return formatDateKey(left) === formatDateKey(right);
 };
@@ -107,13 +121,13 @@ export const getItineraryDateOptions = (startDate, endDate) => {
 
   for (let current = new Date(start); current <= end; current.setDate(current.getDate() + 1)) {
     const currentDate = new Date(current);
-    const key = formatDateKey(currentDate);
+    const key = formatIsoDate(currentDate);
 
     options.push({
       key,
       label: `${currentDate
         .toLocaleDateString('en-US', { weekday: 'short' })
-        .toUpperCase()} ${key}`
+        .toUpperCase()} ${formatDateKey(currentDate)}`
     });
   }
 
