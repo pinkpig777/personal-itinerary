@@ -14,23 +14,10 @@ import { syncAuthenticatedUserProfile } from '../utils/userRegistry';
 
 const AuthContext = createContext(null);
 
-const MOBILE_USER_AGENT_PATTERN = /android|iphone|ipad|ipod|mobile/i;
 const POPUP_FALLBACK_ERROR_CODES = new Set([
   'auth/popup-blocked',
   'auth/operation-not-supported-in-this-environment'
 ]);
-
-const shouldUseRedirectFlow = () => {
-  if (typeof navigator === 'undefined') {
-    return false;
-  }
-
-  if (navigator.userAgentData?.mobile) {
-    return true;
-  }
-
-  return MOBILE_USER_AGENT_PATTERN.test(navigator.userAgent || '');
-};
 
 const formatAuthError = (error) => {
   switch (error?.code) {
@@ -120,11 +107,6 @@ export function AuthProvider({ children }) {
       setAuthError('');
       setIsAuthLoading(true);
       await setPersistence(auth, browserLocalPersistence);
-
-      if (shouldUseRedirectFlow()) {
-        await startRedirectFlow();
-        return;
-      }
 
       await signInWithPopup(auth, googleProvider);
     } catch (error) {
